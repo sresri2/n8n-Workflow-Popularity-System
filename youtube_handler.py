@@ -7,7 +7,25 @@ import subprocess
 from collections import Counter
 from dotenv import load_dotenv
 from description_processor import extract_search_terms
+import torch
 import whisper
+
+def load_whisper_model(model_size="small"):
+    model = whisper.load_model(model_size)
+    try:
+        if torch.backends.mps.is_available():
+            model = model.to("mps")
+            # quick test to check if it actually works
+            _ = torch.zeros(1, device="mps")
+            print("Running Whisper on MPS (Apple Silicon GPU)")
+        else:
+            print("Running Whisper on CPU")
+    except NotImplementedError:
+        print("MPS not fully supported, falling back to CPU")
+        model = model.to("cpu")
+    return model
+
+WHISPER_MODEL = load_whisper_model("tiny")
 
 load_dotenv()
 API_KEY = os.getenv("YOUTUBE_API_KEY")
@@ -19,7 +37,6 @@ MAX_GENERAL_SEARCHES = 2
 MAX_TERMS = 5
 THROTTLE_SECONDS = 2
 
-WHISPER_MODEL = whisper.load_model("base")
 
 def normalize_term(term):
     term_clean = term.strip().lower()
@@ -89,11 +106,26 @@ def collect_initial_videos():
 
 def extract_search_terms_from_videos(videos):
     all_terms = []
+    filter_out = [normalize_term(t) for t in [
+        "n8n", "chatgpt", "llm", "youtube", "zapier", "make", "pabbly", "ifttt", "nadn", "github"
+    ]]
+
     for video in videos:
-        text = f"{video['title']} {video['description']}"
-        extracted = extract_search_terms(text)
-        normalized_terms = [normalize_term(term) for term in extracted]
-        all_terms.extend(normalized_terms)
+        vid = video["videoId"]
+        print(f"Transcribing initial video {vid} with Whisper...")
+        try:
+            text = transcribe_with_whisper(vid)
+            time.sleep(THROTTLE_SECONDS)
+            if text.strip():
+                extracted = extract_search_terms(text)
+                normalized_terms = [normalize_term(term) for term in extracted]
+                filtered_terms = [t for t in normalized_terms if t not in filter_out]
+                all_terms.extend(filtered_terms)
+                print(f"Transcript terms for {vid}: {filtered_terms}")
+            else:
+                print(f"No speech detected for {vid}")
+        except Exception as e:
+            print(f"Transcription failed for {vid}: {e}")
 
     with open("all_extracted_terms.json", "w") as f:
         json.dump(all_terms, f, indent=2)
