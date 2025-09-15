@@ -42,7 +42,6 @@ The project uses three data collection handlers, each focused on a different sou
 
 ### EXAMPLE Database
 - An example of the database after running this system is part of the repository as well. It is named ```workflow_trends.db```. It can be downloaded as the raw file, and viewed via a Terminal using sqlite3 commands. Here are some screenshots, for example.
-- 
 <img width="921" height="451" alt="Screenshot 2025-09-14 at 11 14 33 PM" src="https://github.com/user-attachments/assets/540b757b-dd27-4042-9df2-cb25fc602d18" />
 <img width="1507" height="318" alt="Screenshot 2025-09-14 at 11 15 20 PM" src="https://github.com/user-attachments/assets/9bf414c8-7ca8-4e0d-bdf0-2fbb2b37e276" />
 
