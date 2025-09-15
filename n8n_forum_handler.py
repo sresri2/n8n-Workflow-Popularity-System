@@ -9,21 +9,38 @@ from description_processor import extract_search_terms
 from db_handler import init_db, insert_results
 
 load_dotenv()
+
+# CONSTANTS
 DISCOURSE_BASE_URL = "https://community.n8n.io"
 CATEGORY_ID = 15
-MAX_RESULTS_GENERAL = 10
+
+#Dev-Safe Results Cap
+MAX_RESULTS_GENERAL = 10 
 MAX_RESULTS_SPECIFIC = 10
 MAX_TERMS = 20
 THROTTLE_SECONDS = 2
 
+# Terms to exclude on specific search topics
 EXCLUDE_TERMS = {"n8n", "llm", "chatgpt", "youtube", "zapier", "github", "nadn"}
 
+
 def normalize_term(term):
+    """
+    Normalize search terms:
+        - Trim leading/trailing whitespace
+        - Convert multiple spaces to single space
+        - Convert to lowercase then title case for consistency
+    """
     term_clean = term.strip().lower()
     term_clean = re.sub(r'\s+', ' ', term_clean)
     return term_clean.title()
 
+
 def fetch_category_topics():
+    """
+    Fetch top topics from the "built-with-n8n" category of the forum.
+    Returns a list of topic metadata in JSON.
+    """
     url = f"{DISCOURSE_BASE_URL}/c/built-with-n8n/{CATEGORY_ID}/l/top.json"
     response = requests.get(url)
     response.raise_for_status()
@@ -31,7 +48,12 @@ def fetch_category_topics():
     data = response.json()
     return data.get("topic_list", {}).get("topics", [])
 
+
 def fetch_topic_details(topic_id):
+    """
+    Fetch detailed information for a single forum topic by ID.
+    Includes posts, views, replies, likes, and authors.
+    """
     url = f"{DISCOURSE_BASE_URL}/t/{topic_id}.json"
     response = requests.get(url)
     response.raise_for_status()
@@ -39,6 +61,13 @@ def fetch_topic_details(topic_id):
     return response.json()
 
 def collect_initial_topics():
+    """
+    Collect initial topics from the forum category:
+      - Avoid duplicates using a set of seen IDs
+      - Extract metrics: views, reply_count, like_count, unique contributors
+      - Save raw JSON for debugging or development
+    Returns a list of topics with metadata and engagement metrics.
+    """
     topics = []
     seen_ids = set()
 
@@ -75,6 +104,14 @@ def collect_initial_topics():
     return topics
 
 def extract_search_terms_from_topics(topics):
+    """
+    Extract search terms from forum topics:
+      - Concatenate title + blurb
+      - Use NLP processor to extract keywords
+      - Normalize and filter out excluded terms
+      - Save both all terms and top terms to JSON
+    Returns a list of the most common search terms up to MAX_TERMS.
+    """
     all_terms = []
     for topic in topics:
         text = f"{topic['title']} {topic['blurb']}"
@@ -94,6 +131,13 @@ def extract_search_terms_from_topics(topics):
     return most_common_terms
 
 def search_specific_terms_with_topics(terms):
+    """
+    Search the forum for topics matching specific extracted terms:
+      - Avoid duplicates using seen_ids
+      - Fetch detailed metrics for each found topic
+      - Save topic IDs to JSON for debugging/reference
+    Returns a list of topics with full metrics.
+    """
     seen_ids = set()
     topics = []
 
@@ -136,6 +180,11 @@ def search_specific_terms_with_topics(terms):
     return topics
 
 def build_forum_data(topics):
+    """
+    Convert topic data into structured format for DB insertion:
+      - Includes workflow name, platform, and popularity metrics
+      - Does not write to file; purely prepares data for DB
+    """
     forum_data = []
     for topic in topics:
         views = topic.get("views", 0)
@@ -155,6 +204,15 @@ def build_forum_data(topics):
     return forum_data
 
 def main():
+    """
+    Main entry point:
+      - Initialize database
+      - Collect initial forum topics
+      - Extract top search terms
+      - Search for specific topics using terms
+      - Build structured forum data
+      - Insert final data into SQLite DB
+    """
     init_db()
     print("Collecting initial forum topics...")
     initial_topics = collect_initial_topics()
@@ -172,5 +230,6 @@ def main():
     print("Forum results inserted into database.")
     return final_data
 
+# ---------- ENTRY POINT ----------
 if __name__ == "__main__":
     data = main()

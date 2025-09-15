@@ -5,7 +5,17 @@ from datetime import datetime
 DB_PATH = "workflow_trends.db"
 
 def init_db():
-    """Initialize database and create table if not exists."""
+    """
+    Initialize the database by creating the 'workflow_trends' table if it does not exist.
+    Columns:
+      - id: primary key, auto-incremented
+      - source: identifies the data source (google, youtube, forum)
+      - term: search term (for Google Trends)
+      - workflow: workflow title (for YouTube/forum)
+      - platform: platform name, e.g., "YouTube" or "Forum"
+      - metrics_json: JSON string storing popularity metrics or trend metrics
+      - created_at: timestamp of insertion, defaults to current time
+    """
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("""
@@ -24,7 +34,19 @@ def init_db():
 
 def insert_results(source, results):
     """
-    Atomically replace rows for this source with new results.
+    Insert workflow trend results into the database.
+    
+    Behavior:
+      - Atomically replace all rows for a given source with new results.
+      - Uses a transaction to ensure either all rows are replaced or none on failure.
+    
+    Parameters:
+      - source: str, the source of the data ("google", "youtube", "forum")
+      - results: list of dicts, each dict contains:
+          - term (optional): search term (for Google Trends)
+          - workflow (optional): workflow title (for YouTube/forum)
+          - platform (optional): platform name
+          - metrics or popularity_metrics: dict of metrics (views, likes, etc.)
     """
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()

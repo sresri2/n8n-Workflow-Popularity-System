@@ -73,6 +73,9 @@ def score_youtube(popularity_metrics: dict) -> float:
 
 
 def query_db(query: str, params=()) -> list[dict]:
+    """
+    Run a query on SQLite database and return results as a list of dictionaries.
+    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -83,6 +86,7 @@ def query_db(query: str, params=()) -> list[dict]:
 
 @app.get("/")
 def root():
+    """Basic health check route."""
     return {"status": "ok", "message": "Workflow Trends API is running."}
 
 @app.get("/google")

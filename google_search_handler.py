@@ -21,12 +21,25 @@ MAX_ARTICLES_PER_TERM = 1
 EXCLUDE_TERMS = {"n8n", "llm", "chatgpt", "youtube", "zapier", "github", "nadn"}
 
 def normalize_term(term):
+    """
+    Normalize search terms:
+      - Strip leading/trailing spaces
+      - Collapse multiple spaces into one
+      - Convert to lowercase then title case
+    """
     term_clean = term.strip().lower()
     term_clean = re.sub(r'\s+', ' ', term_clean)
     return term_clean.title()
 
 def serp_search(query, start=0):
-    """Fetch search results from SerpAPI."""
+    """
+    Perform a SerpAPI search for the given query.
+    Parameters:
+        query (str): The search keyword
+        start (int): The starting index for paginated results
+    Returns:
+        List of URLs from the organic search results
+    """
     url = "https://serpapi.com/search"
     params = {
         "q": query,
@@ -43,6 +56,10 @@ def serp_search(query, start=0):
     return urls
 
 def fetch_article_text(url):
+    """
+    Fetch article text from a URL.
+    Returns the plain text content or an empty string if failed.
+    """
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -54,6 +71,17 @@ def fetch_article_text(url):
         return ""
 
 def extract_terms_from_search(keyword):
+    """
+    Perform general search using SerpAPI and extract terms from articles.
+    Steps:
+      - Loop up to MAX_SERP_CALLS
+      - Fetch URLs using serp_search
+      - Fetch article text and extract terms using NLP processor
+      - Normalize and filter terms
+      - Deduplicate terms preserving order
+    Returns:
+        List of unique extracted terms
+    """
     all_terms = []
     calls_made = 0
     start_index = 0
@@ -79,6 +107,16 @@ def extract_terms_from_search(keyword):
     return list(dict.fromkeys(all_terms))
 
 def get_interest_over_time(pytrends, terms):
+    """
+    Fetch Google Trends interest data for a list of terms.
+    For each term:
+      - Fetch historical data
+      - Determine trend direction ("up", "down", "stable")
+      - Store avg_interest, latest_interest, trend
+      - Handles exceptions gracefully
+    Returns:
+        Dictionary mapping term -> metrics
+    """
     interest_data = {}
     for term in terms:
         try:
@@ -106,6 +144,14 @@ def get_interest_over_time(pytrends, terms):
     return interest_data
 
 def main():
+    """
+    Main function:
+      - Initialize database
+      - Extract search terms from general SerpAPI search
+      - Fetch Google Trends metrics for terms
+      - Build results dictionary
+      - Insert results into database
+    """
     init_db()
     print(f"Performing general search via SerpAPI for '{BASE_KEYWORD}'...")
     extracted_terms = extract_terms_from_search(BASE_KEYWORD)
@@ -132,5 +178,6 @@ def main():
     print("Google search results inserted into database.")
     return results
 
+# ---------- ENTRY POINT ----------
 if __name__ == "__main__":
     data = main()

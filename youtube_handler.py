@@ -12,6 +12,10 @@ import whisper
 from db_handler import init_db, insert_results
 
 def load_whisper_model(model_size="small"):
+    """
+    Load OpenAI Whisper model for audio transcription.
+    Attempts to use Apple Silicon GPU (MPS) if available; otherwise CPU.
+    """
     model = whisper.load_model(model_size)
     try:
         if torch.backends.mps.is_available():
@@ -39,11 +43,23 @@ THROTTLE_SECONDS = 2
 
 
 def normalize_term(term):
+    """
+    Normalize terms: strip spaces, collapse multiple spaces, title-case.
+    """
     term_clean = term.strip().lower()
     term_clean = re.sub(r'\s+', ' ', term_clean)
     return term_clean.title()
 
 def search_youtube(query, max_results=5, order="viewCount"):
+    """
+    Search YouTube using the official API.
+    Parameters:
+        query: Search keyword
+        max_results: Number of results to fetch
+        order: Sorting method (viewCount, relevance, etc.)
+    Returns:
+        List of search result items
+    """
     params = {
         "part": "snippet",
         "q": query,
@@ -58,6 +74,10 @@ def search_youtube(query, max_results=5, order="viewCount"):
     return response.json().get("items", [])
 
 def get_video_details(video_ids):
+    """
+    Fetch video statistics and snippet details for a list of video IDs.
+    Returns empty list if no IDs provided.
+    """
     if not video_ids:
         return []
     params = {
@@ -71,6 +91,11 @@ def get_video_details(video_ids):
     return response.json().get("items", [])
 
 def collect_initial_videos():
+    """
+    Collect videos for predefined general search terms.
+    Tracks seen video IDs to avoid duplicates.
+    Returns list of video dicts with title, description, and ID.
+    """
     search_terms = [
         "Best n8n workflows",
         "Most useful n8n workflows",
@@ -105,6 +130,10 @@ def collect_initial_videos():
     return videos
 
 def extract_search_terms_from_videos(videos):
+    """
+    Transcribe videos using Whisper, extract search terms, normalize, filter, and count.
+    Returns top terms for further specific searches.
+    """
     all_terms = []
     filter_out = [normalize_term(t) for t in [
         "n8n", "chatgpt", "llm", "youtube", "zapier", "make", "pabbly", "ifttt", "nadn", "github"
@@ -139,6 +168,10 @@ def extract_search_terms_from_videos(videos):
     return most_common_terms
 
 def download_audio(video_id):
+    """
+    Download audio from YouTube video using yt-dlp.
+    Returns filename or None on failure.
+    """
     filename = f"{video_id}.mp3"
     try:
         subprocess.run(
@@ -153,6 +186,11 @@ def download_audio(video_id):
         return None
 
 def transcribe_with_whisper(video_id):
+    """
+    Download video audio and transcribe with Whisper model.
+    Cleans up audio file after transcription.
+    Returns transcript text.
+    """
     filename = download_audio(video_id)
     if not filename:
         return ""
@@ -164,6 +202,11 @@ def transcribe_with_whisper(video_id):
             os.remove(filename)
 
 def search_specific_terms_with_transcripts(terms):
+    """
+    For each top term, search YouTube for relevant videos.
+    Transcribe each video and extract terms (logging purposes).
+    Returns list of seen video IDs.
+    """
     seen_ids = set()
 
     for term in terms:
@@ -194,6 +237,11 @@ def search_specific_terms_with_transcripts(terms):
     return list(seen_ids)
 
 def build_video_data(video_ids):
+    """
+    Fetch statistics for all video IDs and build YouTube data dict.
+    Calculates like/view and comment/view ratios.
+    Returns list of dicts with popularity metrics.
+    """
     video_data = []
     details = get_video_details(video_ids)
     for video in details:
@@ -218,6 +266,15 @@ def build_video_data(video_ids):
     return video_data
 
 def main():
+    """
+    Main execution flow:
+      - Initialize database
+      - Collect initial YouTube videos
+      - Extract top search terms from transcripts
+      - Search specific videos based on top terms
+      - Build popularity data
+      - Insert results into database
+    """
     init_db()
     print("Collecting initial search results...")
     initial_videos = collect_initial_videos()
@@ -235,5 +292,6 @@ def main():
     print("YouTube results inserted into database.")
     return final_data
 
+# ---------- ENTRY POINT ----------
 if __name__ == "__main__":
     data = main()
