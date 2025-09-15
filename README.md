@@ -38,6 +38,7 @@ The project uses three data collection handlers, each focused on a different sou
 ### `db_handler.py`  
 - Initializes and manages a SQLite database (`workflow_trends.db`).  
 - Atomically replaces existing rows with fresh results on each run, ensuring a full refresh of data.  
+- Transactional database updating means API calls and database reads can continue while database is being updated, and the database will never be left completely or partially empty due to the atomic operations on the database. 
 
 ## NLP Processing  
 
