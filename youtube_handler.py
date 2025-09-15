@@ -9,13 +9,13 @@ from dotenv import load_dotenv
 from description_processor import extract_search_terms
 import torch
 import whisper
+from db_handler import init_db, insert_results
 
 def load_whisper_model(model_size="small"):
     model = whisper.load_model(model_size)
     try:
         if torch.backends.mps.is_available():
             model = model.to("mps")
-            # quick test to check if it actually works
             _ = torch.zeros(1, device="mps")
             print("Running Whisper on MPS (Apple Silicon GPU)")
         else:
@@ -213,16 +213,12 @@ def build_video_data(video_ids):
                 "comments": comments,
                 "like_to_view_ratio": like_ratio,
                 "comment_to_view_ratio": comment_ratio,
-            },
-            "country": "US"
+            }
         })
-
-    with open("youtube_results.json", "w") as f:
-        json.dump(video_data, f, indent=2)
-
     return video_data
 
 def main():
+    init_db()
     print("Collecting initial search results...")
     initial_videos = collect_initial_videos()
 
@@ -235,6 +231,8 @@ def main():
     print("Fetching video statistics...")
     final_data = build_video_data(specific_video_ids)
 
+    insert_results("youtube", final_data)
+    print("YouTube results inserted into database.")
     return final_data
 
 if __name__ == "__main__":
