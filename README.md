@@ -76,6 +76,7 @@ Create a ```.env``` file in the project root with the following:
 ```bash
 SERP_API=<your_serpapi_key>
 YOUTUBE_API_KEY=<your_youtube_api_key>
+GOOGLE_CSE_ID=<your_google_custom_search_engine_api_key>
 ```
 ### Manual Data Collection (Single run)
 ```bash
